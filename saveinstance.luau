@@ -2296,6 +2296,9 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 			ldecompile = function(script)
 			    local cached = ldeccache[script]
 			    if cached then
+			        if __DEBUG_MODE then
+			            __DEBUG_MODE("Found in Cache", script:GetFullName())
+			        end
 			        return cached
 			    end
 			    
@@ -2303,18 +2306,19 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 			        return "-- Not found in already decompiled ScriptCache"
 			    end
 			    
-			    local s, bytecode = getbytecode(script)
-			    if not s or not bytecode or bytecode == "" then
-			        return "-- The Script is Empty"
+			    local ok, source = pcall(function() return script.Source end)
+			    if ok and source and source ~= "" and not string.find(source, "ProtectedString") then
+			        ldeccache[script] = source
+			        return source
 			    end
 			    
-			    local ok, result = decomp(script)
+			    local ok2, result = decomp(script)
 			    if not result then
-			        ok, result = false, "Empty Output"
+			        ok2, result = false, "Empty Output"
 			    end
 			    
 			    local output
-			    if ok then
+			    if ok2 then
 			        result = string.gsub(result, "\0", "\\0")
 			        output = result
 			    else
