@@ -2294,58 +2294,35 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 			local decomp = construct_TimeoutHandler(Timeout, Decompiler, "Decompiler timed out")
 
 			ldecompile = function(script)
-				-- local name = scr.ClassName .. scr.Name
-				local hashed_bytecode
-				if ScriptCache then
-					local s, bytecode = getbytecode(script)
-					local cached
-
-					if s then
-						if not bytecode or bytecode == "" then
-							return "-- The Script is Empty"
-						end
-						local hash = 2166136261
-						for i = 1, #bytecode do
-						    hash = bit32.bxor(hash, string.byte(bytecode, i))
-						    hash = bit32.band(hash * 16777619, 0xFFFFFFFF)
-						end
-						hashed_bytecode = tostring(hash)
-						cached = ldeccache[hashed_bytecode]
-					end
-
-					if cached then
-						if __DEBUG_MODE then
-							__DEBUG_MODE("Found in Cache", script:GetFullName())
-						end
-						return cached
-					end
-				else
-					if DecompileJobless then
-						return "-- Not found in already decompiled ScriptCache"
-					end
-				end
-
-				local ok, result = decomp(script)
-				if not result then
-					ok, result = false, "Empty Output"
-				end
-
-				local output
-				if ok then
-					result = string.gsub(result, "\0", "\\0") -- ? Some decompilers sadly output \0 which prevents files from opening
-					output = result
-				else
-					output = "--[[ Failed to decompile. Reason:\n" .. (result or "") .. "\n]]"
-				end
-
-				if ScriptCache and hashed_bytecode then -- TODO there might(?) be an edgecase where it manages to decompile (built-in) even though getscriptbytecode failed, and the output won't get cached
-					ldeccache[hashed_bytecode] = output -- ? Should we cache even if it timed out?
-					if __DEBUG_MODE then
-						__DEBUG_MODE("Cached", script:GetFullName())
-					end
-				end
-
-				return output
+			    local cached = ldeccache[script]
+			    if cached then
+			        return cached
+			    end
+			    
+			    if DecompileJobless then
+			        return "-- Not found in already decompiled ScriptCache"
+			    end
+			    
+			    local s, bytecode = getbytecode(script)
+			    if not s or not bytecode or bytecode == "" then
+			        return "-- The Script is Empty"
+			    end
+			    
+			    local ok, result = decomp(script)
+			    if not result then
+			        ok, result = false, "Empty Output"
+			    end
+			    
+			    local output
+			    if ok then
+			        result = string.gsub(result, "\0", "\\0")
+			        output = result
+			    else
+			        output = "--[[ Failed to decompile. Reason:\n" .. (result or "") .. "\n]]"
+			    end
+			    
+			    ldeccache[script] = output
+			    return output
 			end
 		else
 			ldecompile = function()
