@@ -2944,7 +2944,44 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 			writefile(placename, header) -- TODO This is sort of useless if writefile will be used at the end (like if AlternativeWritefile and Callback are unused)
 		end
 
-		predecompile_all()
+		if not OPTIONS.noscripts then
+		    local scripts = {}
+		    for _, inst in (ToSaveInstance or game):GetDescendants() do
+		        if inst:IsA("LuaSourceContainer") then
+		            table.insert(scripts, inst)
+		        end
+		    end
+		    
+		    local total = #scripts
+		    local completed = 0
+		    local threads = {}
+		    
+		    if StatusText then
+		        StatusText.Text = "Pre-decompiling " .. total .. " scripts..."
+		    end
+		    
+		    -- Decompile ALL in parallel
+		    for _, script in ipairs(scripts) do
+		        local thread = task.spawn(function()
+		            pcall(ldecompile, script)
+		            completed += 1
+		            if StatusText and completed % 10 == 0 then
+		                StatusText.Text = string.format("Pre-decompiling: %d/%d", completed, total)
+		            end
+		        end)
+		        table.insert(threads, thread)
+		    end
+		    
+		    -- WAIT for ALL to finish
+		    while completed < total do
+		        task.wait(0.1)
+		    end
+		    
+		    if StatusText then
+		        StatusText.Text = "All scripts decompiled! Saving..."
+		    end
+		    task.wait(0.5)
+		end
 
 		-- TODO Find a better solution for this
 		SaveNotCreatableWillBeEnabled = SaveNotCreatable
