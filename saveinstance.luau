@@ -2022,7 +2022,12 @@ do
 					if not bytecode or bytecode == "" then
 						return "-- The Script is Empty"
 					end
-					hashed_bytecode = sha384(bytecode)
+					local hash = 2166136261
+					for i = 1, #bytecode do
+					    hash = bit32.bxor(hash, string.byte(bytecode, i))
+					    hash = bit32.band(hash * 16777619, 0xFFFFFFFF)
+					end
+					hashed_bytecode = tostring(hash)
 					cached = ldeccache[hashed_bytecode]
 				end
 
@@ -2040,7 +2045,7 @@ do
 				task.wait() -- TODO Maybe remove?
 			end
 
-			local ok, result = run_with_loading("Decompiling " .. script.Name, true, nil, decomp, script)
+			local ok, result = decomp(script)
 			if not result then
 				ok, result = false, "Empty Output"
 			end
@@ -2633,6 +2638,29 @@ local function save_extra(name, hierarchy, customClassName, source)
 	savebuffer_size += 1
 end
 
+local function predecompile_all()
+    if OPTIONS.noscripts then return end
+    
+    local scripts = {}
+    for _, inst in (ToSaveInstance or game):GetDescendants() do
+        if inst:IsA("LuaSourceContainer") then
+            table.insert(scripts, inst)
+        end
+    end
+    
+    if StatusText then
+        StatusText.Text = "Pre-decompiling " .. #scripts .. " scripts..."
+    end
+    
+    for _, script in ipairs(scripts) do
+        task.spawn(function()
+            pcall(ldecompile, script)
+        end)
+    end
+    
+    task.wait(1) -- Let threads start
+end
+
 local function save_game()
 	do
 		if IsModel then
@@ -2646,6 +2674,8 @@ local function save_game()
 
 		writefile(placename, header) -- TODO This is sort of useless if writefile will be used at the end (like if AlternativeWritefile and Callback are unused)
 	end
+
+	predecompile_all()
 
 	-- TODO Find a better solution for this
 	SaveNotCreatableWillBeEnabled = SaveNotCreatable
