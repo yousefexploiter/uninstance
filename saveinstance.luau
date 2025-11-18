@@ -2323,8 +2323,6 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 					if DecompileJobless then
 						return "-- Not found in already decompiled ScriptCache"
 					end
-
-					task.wait() -- TODO Maybe remove?
 				end
 
 				local ok, result = decomp(script)
@@ -2930,17 +2928,29 @@ local function synsaveinstance(CustomOptions, CustomOptions2)
 	        end
 	    end
 	    
+	    if #scripts == 0 then return end
+	    
 	    if StatusText then
 	        StatusText.Text = "Pre-decompiling " .. #scripts .. " scripts..."
 	    end
 	    
+	    local completed = 0
+	    local threads = {}
+	    
 	    for _, script in ipairs(scripts) do
-	        task.spawn(function()
+	        table.insert(threads, task.spawn(function()
 	            pcall(ldecompile, script)
-	        end)
+	            completed += 1
+	            if StatusText then
+	                StatusText.Text = "Decompiled " .. completed .. "/" .. #scripts .. " scripts"
+	            end
+	        end))
 	    end
 	    
-	    task.wait(1) -- Let threads start
+	    local startTime = os.clock()
+	    while completed < #scripts and (os.clock() - startTime) < 30 do
+	        task.wait(0.1)
+	    end
 	end
 
 	local function save_game()
